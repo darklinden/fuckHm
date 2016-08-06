@@ -4,6 +4,7 @@ import subprocess
 import os
 import sys
 import shutil
+import re
 
 def run_cmd(cmd):
     print("run cmd: " + " ".join(cmd))
@@ -61,15 +62,44 @@ def __main__():
         return
 
     # go
-    ip_str = ""
-    name = "Name: droid4x_ip_management"
 
-    info_str = run_cmd(['VBoxManage', 'guestproperty', 'enumerate', 'droid4x'])
+    running_vms = run_cmd(['VBoxManage', 'list', 'runningvms'])
+
+    print("getting running vms:")
+    print(running_vms)
+
+    lines = running_vms.split("\n")
+    first = ""
+    idx = 0
+    while idx < len(lines):
+        line = lines[idx]
+        if len(line.strip()) > 0:
+            first = line.strip()
+            break
+        idx += 1
+
+    if len(first) == 0:
+        print("no running vms")
+        return
+
+    vm_name_pos = first.find('"')
+    vm_name = first[vm_name_pos + 1:]
+    vm_name_pos = vm_name.find('"')
+    vm_name = vm_name[:vm_name_pos]
+
+    print("get running vms name " + vm_name)
+
+    ip_str = ""
+    pa = re.compile(r"Name: [0-9,a-z,A-Z,-,_]*_ip")
+    info_str = run_cmd(['VBoxManage', 'guestproperty', 'enumerate', vm_name])
     info_list = info_str.split("\n")
+    name = ""
     for pinfo in info_list:
-        if pinfo[:len(name)] == name:
+        matches = pa.findall(pinfo)
+        if len(matches) > 0:
+            name = matches[0]
             ip_str = pinfo
-            break;
+            break
 
     if len(ip_str) > 0:
         ip_str = get_value_by_key(ip_str, name, "value")
